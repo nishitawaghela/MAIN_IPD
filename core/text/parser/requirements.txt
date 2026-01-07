@@ -1,0 +1,8 @@
+pdf2image
+opencv-python
+numpy
+pytesseract
+pytest
+pdfminer.six
+fastapi
+uvicorn
