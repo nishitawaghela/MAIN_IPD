@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // -----------------------------
     // 7. Call TEXT PARSER service
     // -----------------------------
-    const parserResponse = await fetch("http://127.0.0.1:8000/parse-pdf", {
+    const parserResponse = await fetch("https://ed-tech-compiled.onrender.com/parse-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     // -----------------------------
     // 9. Call KG service
     // -----------------------------
-    const kgResponse = await fetch("http://127.0.0.1:8000/build-kg", {
+    const kgResponse = await fetch("https://ed-tech-compiled.onrender.com/build-kg", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     // 11. Generate Questions
     // -----------------------------
     const questionResponse = await fetch(
-      "http://127.0.0.1:8000/generate-questions",
+      "https://ed-tech-compiled.onrender.com/generate-questions",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
