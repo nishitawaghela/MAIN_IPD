@@ -11,6 +11,11 @@ interface Question {
   id: string
   question_text: string
   concepts: string[]
+  options: {
+    text: string
+    is_correct: boolean
+  }[]
+  is_multi_correct: boolean
 }
 
 export function GatewayAssessment({
@@ -135,12 +140,23 @@ export function GatewayAssessment({
         <div>
           <h3 className="font-semibold mb-4 text-lg">{currentQuestion?.question_text}</h3>
 
-          <RadioGroup value={answers[currentQuestion?.id] || ""} onValueChange={handleAnswerChange}>
+          <RadioGroup
+            value={answers[currentQuestion.id] || ""}
+            onValueChange={handleAnswerChange}
+          >
             <div className="space-y-3">
-              {["Option A", "Option B", "Option C", "Option D"].map((option) => (
-                <div key={option} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option} id={option} />
-                  <Label htmlFor={option}>{option}</Label>
+              {currentQuestion.options.map((option, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center space-x-2"
+                >
+                  <RadioGroupItem
+                    value={option.text}
+                    id={`${currentQuestion.id}-${idx}`}
+                  />
+                  <Label htmlFor={`${currentQuestion.id}-${idx}`}>
+                    {option.text}
+                  </Label>
                 </div>
               ))}
             </div>

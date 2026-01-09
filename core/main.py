@@ -1,9 +1,11 @@
 from kg.build import build_kg_from_text
 from text.parser.parser import parse_pdf
+from questions.orchestrator import generate_questions
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
+from schemas.questions import GenerateQuestionsResponse
 
 app = FastAPI()
 
@@ -22,6 +24,11 @@ class ParsePDFResponse(BaseModel):
     reason: Optional[str] = None
     metrics: Optional[Dict[str, Any]] = None
 
+class GenerateQuestionsRequest(BaseModel):
+    knowledge_graph: dict
+    knowledge_graph_id: str
+    difficulty_level: int
+
 @app.post("/parse-pdf", response_model=ParsePDFResponse)
 def parse_pdf_endpoint(payload: ParsePDFRequest):
     print("PARSE_PDF ENDPOINT HIT")
@@ -31,3 +38,18 @@ def parse_pdf_endpoint(payload: ParsePDFRequest):
 @app.post("/build-kg")
 def build_kg_api(req: BuildKGRequest):
     return build_kg_from_text(req.text, req.pdf_id)
+
+@app.post(
+    "/generate-questions",
+    response_model=GenerateQuestionsResponse
+)
+def generate_questions_api(req: GenerateQuestionsRequest):
+    questions = generate_questions(
+        kg=req.knowledge_graph,
+        pdf_id=req.knowledge_graph_id,
+        difficulty=req.difficulty_level,
+    )
+
+    return {
+        "questions": questions
+    }

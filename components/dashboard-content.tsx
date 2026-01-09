@@ -115,7 +115,7 @@ export function DashboardContent({
                 <CardHeader>
                   <CardTitle className="text-lg">{pdf.filename}</CardTitle>
                   <CardDescription>
-                    Uploaded {new Date(pdf.created_at).toLocaleDateString()}
+                    Uploaded {new Date(pdf.created_at).toISOString().split("T")[0]}
                   </CardDescription>
                 </CardHeader>
 
