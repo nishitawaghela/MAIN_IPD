@@ -7,22 +7,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from openai import OpenAI
 from groq import Groq 
 
-# -----------------------------
-# 1. INITIALIZATION
-# -----------------------------
 load_dotenv()
 
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 client= Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-
-# -----------------------------
-# 2. TEXT CHUNKING
-# -----------------------------
 def chunk_text(text: str, chunk_size=400, chunk_overlap=100) -> List[str]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
@@ -31,38 +23,6 @@ def chunk_text(text: str, chunk_size=400, chunk_overlap=100) -> List[str]:
     )
     return splitter.split_text(text)
 
-
-# -----------------------------
-# 3. LLM → KG EXTRACTION
-# -----------------------------
-# def extract_knowledge_with_llm(text_chunk: str) -> Dict:
-#     system_prompt = """
-#     You are an expert in knowledge graph construction.
-
-#     Extract key concepts and relationships.
-
-#     Output ONLY valid JSON:
-#     {
-#       "nodes": [
-#         {"id": "string", "label": "string", "description": "string"}
-#       ],
-#       "edges": [
-#         {"source": "id", "target": "id", "relation": "string"}
-#       ]
-#     }
-#     """
-
-#     response = client.chat.completions.create(
-#         model="gpt-4o-mini",
-#         messages=[
-#             {"role": "system", "content": system_prompt},
-#             {"role": "user", "content": text_chunk},
-#         ],
-#         temperature=0,
-#         response_format={"type": "json_object"},
-#     )
-
-#     return json.loads(response.choices[0].message.content)
 def extract_knowledge_with_llm(text_chunk: str) -> Dict:
     system_prompt = """
 You are extracting a knowledge graph from educational text.
@@ -101,7 +61,6 @@ DO NOT return empty arrays unless the text truly contains no concepts.
             {"role": "user", "content": text_chunk[:800]},  # 👈 limit input
         ],
         temperature=0.2,
-        # response_format={"type": "json_object"},
     )
     content = response.choices[0].message.content.strip()
 
@@ -111,10 +70,6 @@ DO NOT return empty arrays unless the text truly contains no concepts.
         print("❌ Invalid JSON from Groq:", content)
         return {}
 
-
-# -----------------------------
-# 4. NEO4J STORAGE
-# -----------------------------
 class Neo4jGraph:
     def __init__(self):
         self.driver = GraphDatabase.driver(
@@ -147,10 +102,7 @@ class Neo4jGraph:
                     **edge,
                 )
 
-
-# -----------------------------
 # 5. ORCHESTRATOR (TEXT → KG)
-# -----------------------------
 def process_document(text: str, mode: str = "text") -> Dict:
     """
     Main pipeline:
@@ -193,7 +145,6 @@ def process_document(text: str, mode: str = "text") -> Dict:
 
     if not all_nodes:
         raise ValueError("No nodes extracted from the document")
-        # all_edges.extend(kg.get("edges", []))
 
     graph.store(
         nodes=list(all_nodes.values()),

@@ -7,8 +7,13 @@ sentence-transformers
 groq
 neo4j
 python-dotenv
-# openai
 tiktoken
 langchain-core
 langchain-community
 langchain-text-splitters
+pdf2image
+opencv-python
+numpy
+pytesseract
+pytest
+pdfminer.six

@@ -1,30 +1,19 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
-/**
- * Orchestrates:
- * 1. PDF ownership validation
- * 2. Text extraction + verification (Python Text Parser)
- * 3. Knowledge Graph construction (Python KG service)
- * 4. Progress state updates
- */
 export async function POST(request: NextRequest) {
   console.log("PROCESS PDF ROUTE HIT")
   try {
     const supabase = await createClient()
 
-    // -----------------------------
     // 1. Parse request
-    // -----------------------------
     const { pdf_id } = await request.json()
 
     if (!pdf_id) {
       return NextResponse.json({ error: "pdf_id is required" }, { status: 400 })
     }
 
-    // -----------------------------
     // 2. Auth check
-    // -----------------------------
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -33,9 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // -----------------------------
     // 3. Verify PDF ownership
-    // -----------------------------
     const { data: pdf, error: pdfError } = await supabase
       .from("pdfs")
       .select("*")
@@ -47,9 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "PDF not found" }, { status: 404 })
     }
 
-    // -----------------------------
     // 4. Status → extracting_text
-    // -----------------------------
     await supabase
       .from("pdfs")
       .update({
@@ -58,9 +43,7 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", pdf_id)
 
-    // -----------------------------
     // 5. Call TEXT PARSER service
-    // -----------------------------
     const parserResponse = await fetch("http://127.0.0.1:8000/parse-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -132,7 +115,7 @@ export async function POST(request: NextRequest) {
     // -----------------------------
     // 7. Call KG service
     // -----------------------------
-    const kgResponse = await fetch("http://127.0.0.1:8001/build-kg", {
+    const kgResponse = await fetch("http://127.0.0.1:8000/build-kg", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
