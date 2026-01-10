@@ -1,4 +1,5 @@
 from kg.build import build_kg_from_text
+# from dotenv import load_dotenv
 from text.parser.parser import parse_pdf
 from questions.orchestrator import generate_questions
 from pydantic import BaseModel

@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server"
 import fs from "fs"
 import os from "os"
 import path from "path"
+from dotenv import load_dotenv 
 
-
+load_dotenv()
 export async function POST(request: NextRequest) {
   console.log("PROCESS PDF ROUTE HIT")
 
