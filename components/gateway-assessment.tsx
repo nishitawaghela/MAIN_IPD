@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
@@ -35,7 +41,9 @@ export function GatewayAssessment({
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const response = await fetch(`/api/assessments?pdf_id=${pdfId}&type=gateway`)
+        const response = await fetch(
+          `/api/assessments?pdf_id=${pdfId}&type=gateway`
+        )
         const data = await response.json()
         setQuestions(data.questions || [])
       } catch (err) {
@@ -49,24 +57,27 @@ export function GatewayAssessment({
   }, [pdfId])
 
   const currentQuestion = questions[currentQuestionIndex]
-  const progress = ((currentQuestionIndex + 1) / Math.max(questions.length, 1)) * 100
+  const progress =
+    ((currentQuestionIndex + 1) / Math.max(questions.length, 1)) * 100
 
   const handleAnswerChange = (value: string) => {
-    setAnswers({
-      ...answers,
-      [currentQuestion?.id]: value,
-    })
+    if (!currentQuestion) return
+
+    setAnswers((prev) => ({
+      ...prev,
+      [currentQuestion.id]: value,
+    }))
   }
 
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
+      setCurrentQuestionIndex((i) => i + 1)
     }
   }
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1)
+      setCurrentQuestionIndex((i) => i - 1)
     }
   }
 
@@ -75,11 +86,10 @@ export function GatewayAssessment({
     setError(null)
 
     try {
-      // For demo, mark answers as correct if they exist
       const submittedAnswers = questions.map((q) => ({
         question_id: q.id,
         user_answer: answers[q.id] || "",
-        is_correct: !!answers[q.id],
+        is_correct: !!answers[q.id], // demo logic
       }))
 
       const response = await fetch("/api/assessments", {
@@ -98,6 +108,10 @@ export function GatewayAssessment({
         throw new Error(data.error || "Submission failed")
       }
 
+      alert(
+        `Assessment completed!\n\nScore: ${data.score}%\nCorrect: ${data.correct}/${data.total}`
+      )
+
       onComplete()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed")
@@ -106,11 +120,25 @@ export function GatewayAssessment({
     }
   }
 
+  // ------------------------
+  // SAFE GUARDS (NO CRASH)
+  // ------------------------
+
   if (loading) {
     return (
       <Card>
         <CardContent className="pt-8">
           <p className="text-muted-foreground">Loading assessment...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!currentQuestion) {
+    return (
+      <Card>
+        <CardContent className="pt-8">
+          <p className="text-muted-foreground">Loading question...</p>
         </CardContent>
       </Card>
     )
@@ -126,6 +154,10 @@ export function GatewayAssessment({
     )
   }
 
+  // ------------------------
+  // UI
+  // ------------------------
+
   return (
     <Card>
       <CardHeader>
@@ -134,11 +166,14 @@ export function GatewayAssessment({
           Question {currentQuestionIndex + 1} of {questions.length}
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-6">
         <Progress value={progress} />
 
         <div>
-          <h3 className="font-semibold mb-4 text-lg">{currentQuestion?.question_text}</h3>
+          <h3 className="font-semibold mb-4 text-lg">
+            {currentQuestion.question_text}
+          </h3>
 
           <RadioGroup
             value={answers[currentQuestion.id] || ""}
@@ -146,10 +181,7 @@ export function GatewayAssessment({
           >
             <div className="space-y-3">
               {currentQuestion.options.map((option, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center space-x-2"
-                >
+                <div key={idx} className="flex items-center space-x-2">
                   <RadioGroupItem
                     value={option.text}
                     id={`${currentQuestion.id}-${idx}`}
@@ -166,7 +198,11 @@ export function GatewayAssessment({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-4 justify-between">
-          <Button variant="outline" onClick={handlePrevious} disabled={currentQuestionIndex === 0}>
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentQuestionIndex === 0}
+          >
             Previous
           </Button>
 
