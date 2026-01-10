@@ -3,7 +3,6 @@ from .easy import generate_easy_questions
 from .llm import generate_medium_question, generate_hard_question
 from groq import Groq
 import os
-import uuid
 
 def normalize_question(
     q: dict,
@@ -22,8 +21,7 @@ def normalize_question(
     ]
 
     return {
-        "id": str(uuid.uuid4()),
-        # "pdf_id": pdf_id,
+        "pdf_id": pdf_id,
         "question": q["question"],
         "question_type": question_type,
         "pillar": pillar,

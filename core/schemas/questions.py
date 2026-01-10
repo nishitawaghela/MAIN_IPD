@@ -10,7 +10,6 @@ class Option(BaseModel):
 
 
 class GeneratedQuestion(BaseModel):
-    id: str
     question: str
     question_type: str          # mcq | multi_mcq
     pillar: str                 # Recall | Conceptual | Reasoning | Analytical
