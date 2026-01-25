@@ -7,7 +7,7 @@ def generate_easy_questions(kg: dict, pdf_id: str):
     for edge in kg["edges"]:
         src = nodes.get(edge["source"])
         tgt = nodes.get(edge["target"])
-        rel = edge["relation"]
+        rel = edge.get("surface") or edge["type"].lower()
 
         if not src or not tgt:
             continue

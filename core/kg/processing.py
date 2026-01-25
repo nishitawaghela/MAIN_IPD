@@ -4,8 +4,8 @@ from typing import List, Dict
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-# from openai import OpenAI
-from groq import Groq 
+from groq import Groq
+import re
 
 load_dotenv()
 
@@ -23,37 +23,29 @@ def chunk_text(text: str, chunk_size=400, chunk_overlap=100) -> List[str]:
     )
     return splitter.split_text(text)
 
+def normalize_id(label: str) -> str:
+    return re.sub(r"[^a-z0-9_]", "", label.lower().replace(" ", "_"))
+
 def extract_knowledge_with_llm(text_chunk: str) -> Dict:
     system_prompt = """
-You are extracting a knowledge graph from educational text.
+    You are extracting a knowledge graph from educational text.
+    Rules:
+    - Extract 3–7 concrete concepts.
+    - Concepts must be specific nouns.
+    - Relationships must be short verb phrases that express a clear dependency.
+    - Do NOT use vague relations like "relates to" or "associated with".
+    - Every edge must express a clear semantic dependency.
 
-Rules:
-- ALWAYS extract at least 3 to 7 concepts if possible.
-- Concepts should be concrete nouns (e.g., Photosynthesis, Chlorophyll, Roots).
-- Relationships should be meaningful verbs (e.g., enables, requires, produces).
-
-Return ONLY valid JSON in this exact format:
-
-{
-  "nodes": [
+    Return ONLY valid JSON:
     {
-      "id": "unique_short_id",
-      "label": "Concept Name",
-      "description": "One sentence description"
+        "nodes": [
+            { "label": "Concept Name", "description": "One sentence description" }
+        ],
+        "edges": [
+            { "source": "Concept Name", "target": "Concept Name", "relation": "short verb phrase" }
+        ]
     }
-  ],
-  "edges": [
-    {
-      "source": "node_id",
-      "target": "node_id",
-      "relation": "verb phrase"
-    }
-  ]
-}
-
-DO NOT return empty arrays unless the text truly contains no concepts.
-"""
-
+    """
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[
@@ -94,13 +86,33 @@ class Neo4jGraph:
 
             for edge in edges:
                 session.run(
-                    """
-                    MATCH (a:Concept {id: $source})
-                    MATCH (b:Concept {id: $target})
-                    MERGE (a)-[:RELATES_TO {type: $relation}]->(b)
+                    f"""
+                    MATCH (a:Concept {{id: $source}})
+                    MATCH (b:Concept {{id: $target}})
+                    MERGE (a)-[r:`{edge['type']}`]->(b)
+                    SET r.surface=$surface
                     """,
-                    **edge,
+                    source=edge["source"],
+                    target=edge["target"],
+                    surface=edge["surface"],
                 )
+
+RELATION_MAP = {
+    "is part of": "PART_OF",
+    "belongs to": "PART_OF",
+    "leads to": "CAUSES",
+    "results in": "CAUSES",
+    "produces": "PRODUCES",
+    "enables": "ENABLES",
+    "requires": "REQUIRES",
+    "prevents": "INHIBITS",
+}
+
+def normalize_relation(raw: str) -> str:
+    raw = raw.lower().strip()
+    if raw in RELATION_MAP:
+        return RELATION_MAP[raw]
+    return raw.upper().replace(" ", "_")
 
 # 5. ORCHESTRATOR (TEXT → KG)
 def process_document(text: str, mode: str = "text") -> Dict:
@@ -115,7 +127,7 @@ def process_document(text: str, mode: str = "text") -> Dict:
     chunks = chunk_text(text)
 
     all_nodes = {}
-    all_edges = []
+    all_edges = {}
 
     graph = Neo4jGraph()
 
@@ -136,11 +148,27 @@ def process_document(text: str, mode: str = "text") -> Dict:
             continue
 
         for node in nodes:
-            all_nodes[node["id"]] = node  # de-duplicate by id
+            # all_nodes[node["id"]] = node  # de-duplicate by id
+            node_id = normalize_id(node["label"])
+            node["id"] = node_id
+            all_nodes[node_id] = node
 
         for edge in edges:
-            if "source" in edge and "target" in edge:
-                all_edges.append(edge)
+            src=normalize_id(edge["source"])
+            tgt=normalize_id(edge["target"])
+            raw_rel=edge["relation"]
+            if src not in all_nodes or tgt not in all_nodes:
+                continue
+            canonical=normalize_relation(raw_rel)
+            key=(src,canonical,tgt)
+            all_edges[key]={
+                "source":src,
+                "target":tgt,
+                "type":canonical,
+                "surface":raw_rel,
+            }
+            # if "source" in edge and "target" in edge:
+            #     all_edges.append(edge)
 
 
     if not all_nodes:
@@ -148,7 +176,7 @@ def process_document(text: str, mode: str = "text") -> Dict:
 
     graph.store(
         nodes=list(all_nodes.values()),
-        edges=all_edges
+        edges=list(all_edges.values())
     )
 
     graph.close()

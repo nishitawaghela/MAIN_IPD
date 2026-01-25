@@ -1,19 +1,17 @@
-# evaluate_extraction.py
-
 import json
 from datasets import load_dataset
 from tqdm import tqdm # A handy library for progress bars
 import os # Make sure os is imported for getenv
 from dotenv import load_dotenv # Make sure dotenv is imported
 
-# Important: We import the function we want to test from our existing processing.py file
-from processing import extract_knowledge_with_llm
+from processing import process_document, normalize_id
 
 # --- HELPER FUNCTION (Updated for nsusemiehl/SciERC structure) ---
 
 def format_relations_for_comparison(sentences, ner_tags_per_sentence, relations_per_sentence):
     """
-    Processes nsusemiehl/SciERC's sentence-based NER tags and relations into a set of tuples.
+    Processes nsusemiehl/SciERC's sentence-based NER tags and relations
+    into a set of normalized (source_id, relation, target_id) tuples.
     """
     formatted_relations = set()
     current_token_index = 0
@@ -86,7 +84,7 @@ def format_relations_for_comparison(sentences, ner_tags_per_sentence, relations_
                     target_text = ent_text
 
             if source_text and target_text:
-                formatted_relations.add((source_text, label.lower(), target_text))
+                formatted_relations.add((normalize_id(source_text), label.lower(), normalize_id(target_text)))
 
         current_token_index += sentence_len # Update global index offset for next sentence
 
@@ -110,9 +108,6 @@ def evaluate_knowledge_extraction():
     total_false_positives = 0
     total_false_negatives = 0
 
-    # For initial testing, you might want to process only a small subset
-    # To run on the full dataset, remove the .select() part
-    # subset_dataset = dataset.select(range(20)) # Use this for quick tests
     subset_dataset = dataset # Use this for the full run
 
     print(f"Starting evaluation on {len(subset_dataset)} documents...")
@@ -124,50 +119,31 @@ def evaluate_knowledge_extraction():
             sentences = item['sentences']
             full_text = " ".join([" ".join(sentence) for sentence in sentences])
         except KeyError:
-            print(f"Skipping item {item_index + 1} - missing 'sentences' key.")
-            continue # Skip this item if it doesn't have the expected structure
+            continue
 
         # 2. Get the TRUE relations from the dataset using the specific keys
         try:
             true_relations = format_relations_for_comparison(
                 item['sentences'], item['ner'], item['relations']
             )
-        except KeyError as e:
-            print(f"Skipping item {item_index + 1} - missing key for ground truth: {e}")
-            continue # Skip if ground truth keys are missing
+        except KeyError:
+            continue
+        
+        try:
+            predicted_kg=process_document(full_text)
+            predicted_edges=predicted_kg.get("edges",[])
+        except Exception:
+            predicted_edges=[]
+        
+        predicted_relations=set((edge["source"],edge["type"].lower(),edge["target"]) for edge in predicted_edges)
 
-        # 3. Get the PREDICTED relations from our pipeline
-        predicted_kg_data = extract_knowledge_with_llm(full_text)
-
-        if predicted_kg_data and 'relationships' in predicted_kg_data:
-            # Format the LLM output into the same tuple format
-            predicted_relations_list = [
-                (rel.get('source','').lower(), rel.get('type','').lower(), rel.get('target','').lower())
-                for rel in predicted_kg_data['relationships']
-            ]
-            predicted_relations = set(predicted_relations_list)
-        else:
-            predicted_relations = set()
-
-        # ---- START DEBUG PRINTS ----
-        print(f"\nDocument {item_index + 1}:")
-        print(f"  True relations found: {len(true_relations)}")
-        # print(f"  Sample true: {list(true_relations)[:3]}") # Uncomment to see examples
-        print(f"  Predicted relations found: {len(predicted_relations)}")
-        # print(f"  Sample predicted: {list(predicted_relations)[:3]}") # Uncomment to see examples
-        # ---- END DEBUG PRINTS ----
-
-        # 4. Compare the sets to find TPs, FPs, and FNs
-        true_positives = len(predicted_relations.intersection(true_relations))
-        false_positives = len(predicted_relations.difference(true_relations))
-        false_negatives = len(true_relations.difference(predicted_relations))
-
-        # Accumulate the counts
-        total_true_positives += true_positives
-        total_false_positives += false_positives
-        total_false_negatives += false_negatives
-
-    # --- CALCULATE METRICS ---
+        true_positives=len(predicted_relations.intersection(true_relations))
+        false_positives=len(predicted_relations.difference(true_relations))
+        false_negatives=len(true_relations.difference(predicted_relations))
+        
+        total_true_positives+=true_positives
+        total_false_positives+=false_positives
+        total_false_negatives+=false_negatives
 
     precision = total_true_positives / (total_true_positives + total_false_positives) if (total_true_positives + total_false_positives) > 0 else 0
     recall = total_true_positives / (total_true_positives + total_false_negatives) if (total_true_positives + total_false_negatives) > 0 else 0
@@ -175,7 +151,7 @@ def evaluate_knowledge_extraction():
 
     print("\n--- Knowledge Extraction Benchmark Results (nsusemiehl/SciERC) ---")
     print(f"Total True Relations in Dataset Subset: {total_true_positives + total_false_negatives}")
-    print(f"Total Relations Extracted by LLM: {total_true_positives + total_false_positives}")
+    print(f"Total Relations Extracted by Pipeline: {total_true_positives + total_false_positives}")
     print("---------------------------------------------")
     print(f"Precision: {precision:.4f}")
     print(f"Recall:    {recall:.4f}")

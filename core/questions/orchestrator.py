@@ -57,13 +57,19 @@ def generate_questions(kg, pdf_id, difficulty):
 
     # MEDIUM (Level 3): Relation reasoning
     if difficulty == 3:
+        id_to_label={n["id"]:n["label"] for n in kg["nodes"]}
+
         for edge in kg["edges"][:3]:
+            src = id_to_label.get(edge["source"], edge["source"])
+            tgt = id_to_label.get(edge["target"], edge["target"])
+            rel = edge.get("surface") or edge["type"].lower()
+
             raw_q = json.loads(
                 generate_medium_question(
                     llm_client,
-                    edge["source"],
-                    edge["relation"],
-                    edge["target"],
+                    src,
+                    rel,
+                    tgt,
                 )
             )
 
