@@ -24,10 +24,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File must be a PDF" }, { status: 400 })
     }
 
-    // ✅ IMPORTANT: storage path (THIS is what delete will use)
+    // storage path (THIS is what delete will use)
     const filePath = `${user.id}/${Date.now()}-${file.name}`
 
-    // ✅ Upload to Supabase Storage
+    // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("pdfs")
       .upload(filePath, file, {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: uploadError.message }, { status: 500 })
     }
 
-    // ✅ Save metadata AFTER upload succeeds
+    // Save metadata AFTER upload succeeds
     const { data: pdfRow, error: dbError } = await supabase
       .from("pdfs")
       .insert({

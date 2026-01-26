@@ -13,18 +13,14 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // -----------------------------
     // 1. Parse request
-    // -----------------------------
     const { pdf_id } = await request.json()
 
     if (!pdf_id) {
       return NextResponse.json({ error: "pdf_id is required" }, { status: 400 })
     }
 
-    // -----------------------------
     // 2. Auth check
-    // -----------------------------
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -33,9 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // -----------------------------
     // 3. Verify PDF ownership
-    // -----------------------------
     const { data: pdf, error: pdfError } = await supabase
       .from("pdfs")
       .select("*")
@@ -47,9 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "PDF not found" }, { status: 404 })
     }
 
-    // -----------------------------
     // 4. Create signed URL
-    // -----------------------------
     const { data: signed, error: signedError } = await supabase.storage
       .from("pdfs")
       .createSignedUrl(pdf.file_path, 60)
@@ -60,9 +52,7 @@ export async function POST(request: NextRequest) {
 
     const pdfUrl = signed.signedUrl
 
-    // -----------------------------
     // 5. Download PDF to /tmp
-    // -----------------------------
     const pdfResponse = await fetch(pdfUrl)
 
     if (!pdfResponse.ok) {
@@ -75,9 +65,7 @@ export async function POST(request: NextRequest) {
 
     await fs.promises.writeFile(tempPath, buffer)
 
-    // -----------------------------
     // 6. Status → extracting_text
-    // -----------------------------
     await supabase
       .from("pdfs")
       .update({
@@ -86,9 +74,7 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", pdf_id)
 
-    // -----------------------------
     // 7. Call TEXT PARSER service
-    // -----------------------------
     const parserResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/parse-pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -129,17 +115,13 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", pdf_id)
 
-    // -----------------------------
     // 8. Status → building_kg
-    // -----------------------------
     await supabase
       .from("pdfs")
       .update({ processing_status: "building_kg" })
       .eq("id", pdf_id)
 
-    // -----------------------------
     // 9. Call KG service
-    // -----------------------------
     const kgResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/build-kg`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -161,9 +143,7 @@ export async function POST(request: NextRequest) {
 
     const { kg, evaluation } = kgResult
 
-    // -----------------------------
     // 10. Store Knowledge Graph
-    // -----------------------------
     const { data: kgData, error: kgError } = await supabase
       .from("knowledge_graphs")
       .insert({
@@ -179,9 +159,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to store knowledge graph")
     }
 
-    // -----------------------------
     // 11. Generate Questions
-    // -----------------------------
     const questionResponse = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_URL}/generate-questions`,
       {
@@ -201,9 +179,7 @@ export async function POST(request: NextRequest) {
 
     const { questions } = await questionResponse.json()
 
-    // -----------------------------
     // 12. Store Questions (SAFE)
-    // -----------------------------
     const formattedQuestions = questions.map((q: any) => ({
       knowledge_graph_id: kgData.id,
 
@@ -232,20 +208,14 @@ export async function POST(request: NextRequest) {
       throw questionInsertError
     }
 
-
-
-    // -----------------------------
     // 13. Initialize learning progress
-    // -----------------------------
     await supabase.from("learning_progress").insert({
       user_id: user.id,
       pdf_id,
       gateway_passed: false,
     })
 
-    // -----------------------------
     // 14. Status → ready
-    // -----------------------------
     await supabase
       .from("pdfs")
       .update({
@@ -267,9 +237,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   } finally {
-    // -----------------------------
-    // Cleanup temp file
-    // -----------------------------
+    // Cleanup temp file 
     if (tempPath) {
       try {
         await fs.promises.unlink(tempPath)

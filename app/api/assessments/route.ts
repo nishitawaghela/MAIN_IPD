@@ -1,24 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
-/**
- * GET:
- * - Fetch gateway assessment (if exists)
- * - Fetch questions for the PDF via knowledge_graph_id
- *
- * POST:
- * - Submit assessment answers
- * - Calculate score
- * - Update assessment + learning_progress
- */
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // -----------------------------
     // Auth check
-    // -----------------------------
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -27,9 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // -----------------------------
     // Parse query
-    // -----------------------------
     const { searchParams } = new URL(request.url)
     const pdf_id = searchParams.get("pdf_id")
 
@@ -37,9 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "pdf_id required" }, { status: 400 })
     }
 
-    // -----------------------------
     // Fetch knowledge graph
-    // -----------------------------
     const { data: kg, error: kgError } = await supabase
       .from("knowledge_graphs")
       .select("id")
@@ -53,9 +36,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // -----------------------------
     // Fetch latest gateway assessment
-    // -----------------------------
     const { data: gatewayAssessment } = await supabase
       .from("assessments")
       .select("*")
@@ -66,9 +47,7 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .single()
 
-    // -----------------------------
     // Fetch questions
-    // -----------------------------
     const { data: questions, error: questionsError } = await supabase
       .from("questions")
       .select("*")
@@ -100,9 +79,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // -----------------------------
     // Auth check
-    // -----------------------------
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -111,9 +88,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // -----------------------------
     // Parse body
-    // -----------------------------
     const { pdf_id, assessment_type, answers } = await request.json()
 
     if (!pdf_id || !assessment_type || !Array.isArray(answers)) {
@@ -123,9 +98,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // -----------------------------
     // Create assessment
-    // -----------------------------
     const { data: assessment, error: assessmentError } = await supabase
       .from("assessments")
       .insert({
@@ -145,9 +118,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // -----------------------------
     // Store answers
-    // -----------------------------
     const answerRows = answers.map(
       (a: {
         question_id: string
@@ -172,9 +143,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // -----------------------------
     // Calculate score
-    // -----------------------------
     const correctCount = answers.filter(
       (a: { is_correct: boolean }) => a.is_correct
     ).length
@@ -183,9 +152,7 @@ export async function POST(request: NextRequest) {
       (correctCount / Math.max(answers.length, 1)) * 100
     )
 
-    // -----------------------------
     // Update assessment
-    // -----------------------------
     const { error: updateError } = await supabase
       .from("assessments")
       .update({
@@ -203,9 +170,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // -----------------------------
     // Update learning progress
-    // -----------------------------
     if (assessment_type === "gateway" && score >= 70) {
       await supabase
         .from("learning_progress")
