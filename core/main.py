@@ -1,12 +1,12 @@
-from kg.build import build_kg_from_text
+from core.kg.build import build_kg_from_text
 # from dotenv import load_dotenv
-from text.parser.parser import parse_pdf
-from questions.orchestrator import generate_questions
+from core.text.parser.parser import parse_pdf
+from core.questions.orchestrator import generate_questions
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
-from schemas.questions import GenerateQuestionsResponse
+from core.schemas.questions import GenerateQuestionsResponse
 
 app = FastAPI()
 
@@ -54,3 +54,6 @@ def generate_questions_api(req: GenerateQuestionsRequest):
     return {
         "questions": questions
     }
+@app.get("/health")
+def health():
+    return {"status": "ok"}
