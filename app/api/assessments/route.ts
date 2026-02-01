@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const pdf_id = searchParams.get("pdf_id")
 
     if (!pdf_id) {
-      return NextResponse.json({ error: "pdf_id required", code: "PDF_ID_REQUIRED" }, { status: 400 })
+      return NextResponse.json({ error: "pdf_id required" }, { status: 400 })
     }
 
     // Fetch knowledge graph
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (kgError || !kg) {
       return NextResponse.json(
-        { error: "Knowledge graph not found", code: "KG_NOT_FOUND" },
+        { error: "Knowledge graph not found" },
         { status: 404 }
       )
     }

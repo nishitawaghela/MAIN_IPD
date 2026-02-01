@@ -2,16 +2,18 @@
 # from core.text.parser.parser import parse_pdf
 # from core.questions.orchestrator import generate_questions
 from pydantic import BaseModel
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 from core.schemas.questions import GenerateQuestionsResponse
+import tempfile
+import os
 # from dotenv import load_dotenv
 
 app = FastAPI()
 
-class ParsePDFRequest(BaseModel):
-    pdf_path: str
+# class ParsePDFRequest(BaseModel):
+#     pdf_path: str
 
 class BuildKGRequest(BaseModel):
     text: str
@@ -35,11 +37,19 @@ def health():
     return {"status": "ok"}
 
 @app.post("/parse-pdf", response_model=ParsePDFResponse)
-def parse_pdf_endpoint(payload: ParsePDFRequest):
+async def parse_pdf_endpoint(file: UploadFile=File(...)):
     from core.text.parser.parser import parse_pdf
     print("PARSE_PDF ENDPOINT HIT")
-    result = parse_pdf(payload.pdf_path)
-    return JSONResponse(content=result)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        contents = await file.read()
+        tmp.write(contents)
+        pdf_path = tmp.name
+    try:
+        result = parse_pdf(pdf_path)
+        return JSONResponse(content=result)
+    finally:
+        if os.path.exists(pdf_path):
+            os.unlink(pdf_path)
 
 @app.post("/build-kg")
 def build_kg_api(req: BuildKGRequest):
