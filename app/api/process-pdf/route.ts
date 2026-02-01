@@ -74,14 +74,22 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", pdf_id)
 
-    // 7. Call TEXT PARSER service
-    const parserResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/parse-pdf`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pdf_path: tempPath,
-      }),
-    })
+    // 7. Call TEXT PARSER service (SEND FILE, NOT PATH)
+    const formData = new FormData()
+
+    formData.append(
+      "file",
+      new Blob([buffer], { type: "application/pdf" }),
+      `${pdf_id}.pdf`
+    )
+
+    const parserResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/parse-pdf`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    )
 
     if (!parserResponse.ok) {
       throw new Error("Text extraction service failed")
